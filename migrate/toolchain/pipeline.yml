@@ -1,0 +1,72 @@
+---
+stages:
+- name: Build
+  inputs:
+  - url: https://github.com/BennyHoang/react-seed-app-20170710120247991.git
+    type: git
+    branch: master
+    dir_name: null
+  triggers:
+  - type: commit
+  jobs:
+  - name: Build
+    type: builder
+    artifact_dir: ''
+    build_type: npm
+    script: |-
+      export PATH=/opt/IBM/node-v4.2/bin:$PATH
+
+      npm install
+      npm run build
+
+      tar -czf node_modules.tar.gz node_modules
+      rm -rf node_modules
+- name: Deploy to Test
+  inputs:
+  - type: job
+    stage: Build
+    job: Build
+    dir_name: null
+  triggers:
+  - type: stage
+  jobs:
+  - name: Test Job
+    type: tester
+    script: |-
+      #!/bin/bash
+      # Supposed to be testing through e.g. Saucelabs, but not configured and therefore disabled.
+      # Must be configured as module in Toolchain, and selected.
+  - name: Deploy Test
+    type: deployer
+    target:
+      region_id: ibm:yp:us-south
+      organization: ACIT Org
+      space: acit-norway
+      application: react-seed-app-20170710120247991-test
+    script: |
+      #!/bin/bash
+      cf push "${CF_APP}"
+- name: Deploy to Production
+  inputs:
+  - type: job
+    stage: Build
+    job: Build
+    dir_name: null
+  triggers:
+  - type: stage
+  jobs:
+  - name: Deploy Prod
+    type: deployer
+    target:
+      region_id: ibm:yp:us-south
+      organization: ACIT Org
+      space: acit-norway
+      application: ufc-app
+    script: |
+      #!/bin/bash
+      cf push "${CF_APP}"
+hooks:
+- enabled: true
+  label: null
+  ssl_enabled: false
+  url: https://devops-api.ng.bluemix.net/v1/messaging/webhook/publish
